@@ -6648,6 +6648,57 @@ var init_resolve_node = __esm({
 });
 
 // src/installer/index.ts
+function isComparableVersion(version3) {
+  return !!version3 && /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(version3);
+}
+function compareVersions(a, b) {
+  const partsA = a.replace(/^v/, "").split(".").map((part) => parseInt(part, 10) || 0);
+  const partsB = b.replace(/^v/, "").split(".").map((part) => parseInt(part, 10) || 0);
+  const maxLength = Math.max(partsA.length, partsB.length);
+  for (let i = 0; i < maxLength; i++) {
+    const valueA = partsA[i] || 0;
+    const valueB = partsB[i] || 0;
+    if (valueA < valueB) return -1;
+    if (valueA > valueB) return 1;
+  }
+  return 0;
+}
+function extractOmcVersionMarker(content) {
+  const match = content.match(OMC_VERSION_MARKER_PATTERN);
+  return match?.[1] ?? null;
+}
+function getNewestInstalledVersionHint() {
+  const candidates = [];
+  if ((0, import_fs28.existsSync)(VERSION_FILE)) {
+    try {
+      const metadata = JSON.parse((0, import_fs28.readFileSync)(VERSION_FILE, "utf-8"));
+      if (isComparableVersion(metadata.version)) {
+        candidates.push(metadata.version);
+      }
+    } catch {
+    }
+  }
+  const claudeCandidates = [
+    (0, import_path36.join)(CLAUDE_CONFIG_DIR, "CLAUDE.md"),
+    (0, import_path36.join)((0, import_os8.homedir)(), "CLAUDE.md")
+  ];
+  for (const candidatePath of claudeCandidates) {
+    if (!(0, import_fs28.existsSync)(candidatePath)) continue;
+    try {
+      const detectedVersion = extractOmcVersionMarker((0, import_fs28.readFileSync)(candidatePath, "utf-8"));
+      if (isComparableVersion(detectedVersion)) {
+        candidates.push(detectedVersion);
+      }
+    } catch {
+    }
+  }
+  if (candidates.length === 0) {
+    return null;
+  }
+  return candidates.reduce(
+    (highest, candidate) => compareVersions(candidate, highest) > 0 ? candidate : highest
+  );
+}
 function findLineAnchoredMarker(content, marker, fromEnd = false) {
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const regex = new RegExp(`^${escapedMarker}$`, "gm");
@@ -6844,6 +6895,15 @@ function install(options = {}) {
     result.message = `Installation failed: Node.js ${nodeCheck.required}+ required`;
     return result;
   }
+  const targetVersion = options.version ?? VERSION;
+  const installedVersionHint = getNewestInstalledVersionHint();
+  if (isComparableVersion(targetVersion) && isComparableVersion(installedVersionHint) && compareVersions(targetVersion, installedVersionHint) < 0) {
+    const message = `Skipping install: installed OMC ${installedVersionHint} is newer than CLI package ${targetVersion}. Run "omc update" to update the CLI package, then rerun "omc setup".`;
+    log3(message);
+    result.success = true;
+    result.message = message;
+    return result;
+  }
   log3(`Platform: ${process.platform} (Node.js hooks)`);
   const runningAsPlugin = isRunningAsPlugin();
   const projectScoped = isProjectScopedPlugin();
@@ -6930,7 +6990,7 @@ function install(options = {}) {
           (0, import_fs28.writeFileSync)(backupPath, existingContent);
           log3(`Backed up existing CLAUDE.md to ${backupPath}`);
         }
-        const mergedContent = mergeClaudeMd(existingContent, omcContent, options.version ?? VERSION);
+        const mergedContent = mergeClaudeMd(existingContent, omcContent, targetVersion);
         (0, import_fs28.writeFileSync)(claudeMdPath, mergedContent);
         if (existingContent) {
           log3("Updated CLAUDE.md (merged with existing content)");
@@ -7145,7 +7205,7 @@ function install(options = {}) {
     }
     if (!projectScoped) {
       const versionMetadata = {
-        version: options.version ?? VERSION,
+        version: targetVersion,
         installedAt: (/* @__PURE__ */ new Date()).toISOString(),
         installMethod: "npm",
         lastCheckAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -7183,7 +7243,7 @@ function getInstallInfo() {
     return null;
   }
 }
-var import_fs28, import_path36, import_url8, import_os8, import_child_process11, CLAUDE_CONFIG_DIR, AGENTS_DIR, COMMANDS_DIR, SKILLS_DIR, HOOKS_DIR, HUD_DIR, SETTINGS_FILE, VERSION_FILE, CORE_COMMANDS, VERSION, OMC_HOOK_FILENAMES;
+var import_fs28, import_path36, import_url8, import_os8, import_child_process11, CLAUDE_CONFIG_DIR, AGENTS_DIR, COMMANDS_DIR, SKILLS_DIR, HOOKS_DIR, HUD_DIR, SETTINGS_FILE, VERSION_FILE, CORE_COMMANDS, VERSION, OMC_VERSION_MARKER_PATTERN, OMC_HOOK_FILENAMES;
 var init_installer = __esm({
   "src/installer/index.ts"() {
     "use strict";
@@ -7206,6 +7266,7 @@ var init_installer = __esm({
     VERSION_FILE = (0, import_path36.join)(CLAUDE_CONFIG_DIR, ".omc-version.json");
     CORE_COMMANDS = [];
     VERSION = getRuntimePackageVersion();
+    OMC_VERSION_MARKER_PATTERN = /<!-- OMC:VERSION:([^\s]+) -->/;
     OMC_HOOK_FILENAMES = /* @__PURE__ */ new Set([
       "keyword-detector.mjs",
       "session-start.mjs",
@@ -7231,7 +7292,7 @@ __export(auto_update_exports, {
   backgroundUpdateCheck: () => backgroundUpdateCheck,
   checkForUpdates: () => checkForUpdates,
   clearPendingUpdateRestart: () => clearPendingUpdateRestart,
-  compareVersions: () => compareVersions,
+  compareVersions: () => compareVersions2,
   fetchLatestRelease: () => fetchLatestRelease,
   formatUpdateNotification: () => formatUpdateNotification,
   getInstalledVersion: () => getInstalledVersion,
@@ -7397,7 +7458,7 @@ async function fetchLatestRelease() {
   }
   return await response.json();
 }
-function compareVersions(a, b) {
+function compareVersions2(a, b) {
   const cleanA = a.replace(/^v/, "");
   const cleanB = b.replace(/^v/, "");
   const partsA = cleanA.split(".").map((n) => parseInt(n, 10) || 0);
@@ -7416,7 +7477,7 @@ async function checkForUpdates() {
   const release = await fetchLatestRelease();
   const currentVersion = installed?.version ?? null;
   const latestVersion = release.tag_name.replace(/^v/, "");
-  const updateAvailable = currentVersion === null || compareVersions(currentVersion, latestVersion) < 0;
+  const updateAvailable = currentVersion === null || compareVersions2(currentVersion, latestVersion) < 0;
   updateLastCheckTime();
   return {
     currentVersion,
@@ -26165,7 +26226,7 @@ async function main2(watchMode = false) {
       await (0, import_promises16.access)(updateCacheFile);
       const content = await (0, import_promises16.readFile)(updateCacheFile, "utf-8");
       const cached2 = JSON.parse(content);
-      if (cached2?.latestVersion && omcVersion && compareVersions(omcVersion, cached2.latestVersion) < 0) {
+      if (cached2?.latestVersion && omcVersion && compareVersions2(omcVersion, cached2.latestVersion) < 0) {
         updateAvailable = cached2.latestVersion;
       }
     } catch (error2) {
@@ -66812,8 +66873,13 @@ Examples:
         console.log(source_default.yellow(`    - ${c.eventType}: ${c.existingCommand}`));
       });
     }
+    const installed = getInstalledVersion();
+    const reportedVersion = installed?.version ?? version2;
     console.log("");
-    console.log(source_default.gray(`Version: ${version2}`));
+    console.log(source_default.gray(`Version: ${reportedVersion}`));
+    if (reportedVersion !== version2) {
+      console.log(source_default.gray(`CLI package version: ${version2}`));
+    }
     console.log(source_default.gray("Start Claude Code and use /oh-my-claudecode:omc-setup for interactive setup."));
   }
 });

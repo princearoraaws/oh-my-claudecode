@@ -1238,8 +1238,13 @@ Examples:
                 console.log(chalk.yellow(`    - ${c.eventType}: ${c.existingCommand}`));
             });
         }
+        const installed = getInstalledVersion();
+        const reportedVersion = installed?.version ?? version;
         console.log('');
-        console.log(chalk.gray(`Version: ${version}`));
+        console.log(chalk.gray(`Version: ${reportedVersion}`));
+        if (reportedVersion !== version) {
+            console.log(chalk.gray(`CLI package version: ${version}`));
+        }
         console.log(chalk.gray('Start Claude Code and use /oh-my-claudecode:omc-setup for interactive setup.'));
     }
 });

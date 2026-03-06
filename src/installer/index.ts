@@ -41,6 +41,77 @@ export const CORE_COMMANDS: string[] = [];
 /** Current version */
 export const VERSION = getRuntimePackageVersion();
 
+const OMC_VERSION_MARKER_PATTERN = /<!-- OMC:VERSION:([^\s]+) -->/;
+
+/**
+ * Detects the newest installed OMC version from persistent metadata or
+ * existing CLAUDE.md markers so an older CLI package cannot overwrite a
+ * newer installation during `omc setup`.
+ */
+function isComparableVersion(version: string | null | undefined): version is string {
+  return !!version && /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(version);
+}
+
+function compareVersions(a: string, b: string): number {
+  const partsA = a.replace(/^v/, '').split('.').map(part => parseInt(part, 10) || 0);
+  const partsB = b.replace(/^v/, '').split('.').map(part => parseInt(part, 10) || 0);
+  const maxLength = Math.max(partsA.length, partsB.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const valueA = partsA[i] || 0;
+    const valueB = partsB[i] || 0;
+    if (valueA < valueB) return -1;
+    if (valueA > valueB) return 1;
+  }
+
+  return 0;
+}
+
+function extractOmcVersionMarker(content: string): string | null {
+  const match = content.match(OMC_VERSION_MARKER_PATTERN);
+  return match?.[1] ?? null;
+}
+
+function getNewestInstalledVersionHint(): string | null {
+  const candidates: string[] = [];
+
+  if (existsSync(VERSION_FILE)) {
+    try {
+      const metadata = JSON.parse(readFileSync(VERSION_FILE, 'utf-8')) as { version?: string };
+      if (isComparableVersion(metadata.version)) {
+        candidates.push(metadata.version);
+      }
+    } catch {
+      // Ignore unreadable metadata and fall back to CLAUDE.md markers.
+    }
+  }
+
+  const claudeCandidates = [
+    join(CLAUDE_CONFIG_DIR, 'CLAUDE.md'),
+    join(homedir(), 'CLAUDE.md'),
+  ];
+
+  for (const candidatePath of claudeCandidates) {
+    if (!existsSync(candidatePath)) continue;
+    try {
+      const detectedVersion = extractOmcVersionMarker(readFileSync(candidatePath, 'utf-8'));
+      if (isComparableVersion(detectedVersion)) {
+        candidates.push(detectedVersion);
+      }
+    } catch {
+      // Ignore unreadable CLAUDE.md candidates.
+    }
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates.reduce((highest, candidate) =>
+    compareVersions(candidate, highest) > 0 ? candidate : highest
+  );
+}
+
 /**
  * Find a marker that appears at the start of a line (line-anchored).
  * This prevents matching markers inside code blocks.
@@ -419,6 +490,19 @@ export function install(options: InstallOptions = {}): InstallResult {
     return result;
   }
 
+  const targetVersion = options.version ?? VERSION;
+  const installedVersionHint = getNewestInstalledVersionHint();
+
+  if (isComparableVersion(targetVersion)
+    && isComparableVersion(installedVersionHint)
+    && compareVersions(targetVersion, installedVersionHint) < 0) {
+    const message = `Skipping install: installed OMC ${installedVersionHint} is newer than CLI package ${targetVersion}. Run "omc update" to update the CLI package, then rerun "omc setup".`;
+    log(message);
+    result.success = true;
+    result.message = message;
+    return result;
+  }
+
   // Log platform info
   log(`Platform: ${process.platform} (Node.js hooks)`);
 
@@ -545,7 +629,7 @@ export function install(options: InstallOptions = {}): InstallResult {
         }
 
         // Merge OMC content with existing content
-        const mergedContent = mergeClaudeMd(existingContent, omcContent, options.version ?? VERSION);
+        const mergedContent = mergeClaudeMd(existingContent, omcContent, targetVersion);
         writeFileSync(claudeMdPath, mergedContent);
 
         if (existingContent) {
@@ -798,7 +882,7 @@ export function install(options: InstallOptions = {}): InstallResult {
     // Save version metadata (skip for project-scoped plugins)
     if (!projectScoped) {
       const versionMetadata = {
-        version: options.version ?? VERSION,
+        version: targetVersion,
         installedAt: new Date().toISOString(),
         installMethod: 'npm' as const,
         lastCheckAt: new Date().toISOString()
