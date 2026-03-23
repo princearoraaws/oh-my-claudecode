@@ -127,7 +127,7 @@ function sanitizeForKeywordDetection(text) {
 
 const INFORMATIONAL_INTENT_PATTERNS = [
   /\b(?:what(?:'s|\s+is)|what\s+are|how\s+(?:to|do\s+i)\s+use|explain|explanation|tell\s+me\s+about|describe)\b/i,
-  /(?:뭐야|무엇(?:이야|인가요)?|어떻게|설명|사용법|알려줘|소개해?\s?줘|기능|방법)/u,
+  /(?:뭐야|무엇(?:이야|인가요)?|어떻게|설명해?\s?줘|사용법|알려\s?줘|소개해?\s?줘|기능\s*(?:알려|설명|뭐)|방법\s*(?:알려|설명|뭐))/u,
   /(?:とは|って何|使い方|説明)/u,
   /(?:什么是|什麼是|怎(?:么|樣)用|如何使用|解释|說明|说明)/u,
 ];
