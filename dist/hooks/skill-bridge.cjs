@@ -67,26 +67,13 @@ var KOREAN_MAP = {
   // === deep-dive skill ===
   "deep dive": ["\uB525\uB2E4\uC774\uBE0C", "\uB525 \uB2E4\uC774\uBE0C"],
   "deep-dive": ["\uB525\uB2E4\uC774\uBE0C"],
-  "trace and interview": ["\uD2B8\uB808\uC774\uC2A4 \uC564 \uC778\uD130\uBDF0", "\uCD94\uC801 \uC778\uD130\uBDF0"],
-  "investigate deeply": ["\uAE4A\uC774 \uC870\uC0AC", "\uC2EC\uCE35 \uC870\uC0AC"],
+  "trace and interview": ["\uD2B8\uB808\uC774\uC2A4 \uC564 \uC778\uD130\uBDF0"],
   // === deep-pipeline skill ===
   "deep-pipeline": ["\uB525\uD30C\uC774\uD504\uB77C\uC778", "\uB525 \uD30C\uC774\uD504\uB77C\uC778"],
   "deep-pipe": ["\uB525\uD30C\uC774\uD504"],
   "pipeline-cycle": ["\uD30C\uC774\uD504\uB77C\uC778 \uC0AC\uC774\uD074"],
   "dev-pipeline": ["\uAC1C\uBC1C \uD30C\uC774\uD504\uB77C\uC778"],
-  "dev-cycle": ["\uAC1C\uBC1C \uC0AC\uC774\uD074"],
-  // === configure-notifications skill ===
-  "configure notifications": ["\uC54C\uB9BC \uC124\uC815", "\uB178\uD2F0 \uC124\uC815"],
-  "setup notifications": ["\uC54C\uB9BC \uC124\uC815"],
-  "configure telegram": ["\uD154\uB808\uADF8\uB7A8 \uC124\uC815"],
-  "setup telegram": ["\uD154\uB808\uADF8\uB7A8 \uC124\uC815"],
-  "telegram bot": ["\uD154\uB808\uADF8\uB7A8 \uBD07"],
-  "configure discord": ["\uB514\uC2A4\uCF54\uB4DC \uC124\uC815"],
-  "setup discord": ["\uB514\uC2A4\uCF54\uB4DC \uC124\uC815"],
-  "discord webhook": ["\uB514\uC2A4\uCF54\uB4DC \uC6F9\uD6C5"],
-  "configure slack": ["\uC2AC\uB799 \uC124\uC815"],
-  "setup slack": ["\uC2AC\uB799 \uC124\uC815"],
-  "slack webhook": ["\uC2AC\uB799 \uC6F9\uD6C5"]
+  "dev-cycle": ["\uAC1C\uBC1C \uC0AC\uC774\uD074"]
 };
 function expandTriggers(triggersLower) {
   const expanded = new Set(triggersLower);
